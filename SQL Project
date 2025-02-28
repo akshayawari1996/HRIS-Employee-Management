@@ -1,0 +1,100 @@
+-- HRIS Employee Management System (SQL Project)
+
+-- Step 1: Create Database
+CREATE DATABASE HRIS_Employee_Management;
+USE HRIS_Employee_Management;
+
+-- Step 2: Create Tables
+CREATE TABLE Departments (
+    DepartmentID INT PRIMARY KEY AUTO_INCREMENT,
+    DepartmentName VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Employees (
+    EmployeeID INT PRIMARY KEY AUTO_INCREMENT,
+    FirstName VARCHAR(50) NOT NULL,
+    LastName VARCHAR(50) NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    PhoneNumber VARCHAR(15),
+    HireDate DATE NOT NULL,
+    JobTitle VARCHAR(100) NOT NULL,
+    DepartmentID INT,
+    Salary DECIMAL(10,2) NOT NULL,
+    Status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    FOREIGN KEY (DepartmentID) REFERENCES Departments(DepartmentID)
+);
+
+CREATE TABLE Attendance (
+    AttendanceID INT PRIMARY KEY AUTO_INCREMENT,
+    EmployeeID INT,
+    AttendanceDate DATE NOT NULL,
+    Status ENUM('Present', 'Absent', 'Leave') NOT NULL,
+    FOREIGN KEY (EmployeeID) REFERENCES Employees(EmployeeID)
+);
+
+CREATE TABLE Salaries (
+    SalaryID INT PRIMARY KEY AUTO_INCREMENT,
+    EmployeeID INT,
+    SalaryAmount DECIMAL(10,2) NOT NULL,
+    EffectiveDate DATE NOT NULL,
+    FOREIGN KEY (EmployeeID) REFERENCES Employees(EmployeeID)
+);
+
+-- Step 3: Insert Sample Data
+INSERT INTO Departments (DepartmentName) VALUES 
+('HR'), ('IT'), ('Finance'), ('Sales');
+
+INSERT INTO Employees (FirstName, LastName, Email, PhoneNumber, HireDate, JobTitle, DepartmentID, Salary, Status) VALUES 
+('John', 'Doe', 'john.doe@example.com', '1234567890', '2023-01-10', 'HR Manager', 1, 75000, 'Active'),
+('Jane', 'Smith', 'jane.smith@example.com', '0987654321', '2022-07-15', 'Software Engineer', 2, 85000, 'Active');
+
+INSERT INTO Attendance (EmployeeID, AttendanceDate, Status) VALUES 
+(1, '2024-02-01', 'Present'),
+(2, '2024-02-01', 'Absent');
+
+INSERT INTO Salaries (EmployeeID, SalaryAmount, EffectiveDate) VALUES 
+(1, 75000, '2023-01-10'),
+(2, 85000, '2022-07-15');
+
+-- Step 4: Queries
+-- 1. Retrieve all employees with their department names
+SELECT E.EmployeeID, E.FirstName, E.LastName, D.DepartmentName, E.JobTitle, E.Salary, E.Status
+FROM Employees E
+JOIN Departments D ON E.DepartmentID = D.DepartmentID;
+
+-- 2. Count the number of employees in each department
+SELECT D.DepartmentName, COUNT(E.EmployeeID) AS TotalEmployees
+FROM Departments D
+LEFT JOIN Employees E ON D.DepartmentID = E.DepartmentID
+GROUP BY D.DepartmentName;
+
+-- 3. Get the attendance record for February 2024
+SELECT A.AttendanceID, E.FirstName, E.LastName, A.AttendanceDate, A.Status
+FROM Attendance A
+JOIN Employees E ON A.EmployeeID = E.EmployeeID
+WHERE A.AttendanceDate BETWEEN '2024-02-01' AND '2024-02-29';
+
+-- Step 5: Create a View for Active Employees
+CREATE VIEW ActiveEmployees AS
+SELECT EmployeeID, FirstName, LastName, JobTitle, Salary
+FROM Employees
+WHERE Status = 'Active';
+
+-- Step 6: Create a Stored Procedure to Get Employee Salary History
+DELIMITER //
+CREATE PROCEDURE GetSalaryHistory(IN empID INT)
+BEGIN
+    SELECT SalaryAmount, EffectiveDate FROM Salaries WHERE EmployeeID = empID ORDER BY EffectiveDate DESC;
+END //
+DELIMITER ;
+
+-- Step 7: Create a Trigger to Log Salary Changes
+DELIMITER //
+CREATE TRIGGER SalaryUpdateTrigger
+BEFORE UPDATE ON Employees
+FOR EACH ROW
+BEGIN
+    INSERT INTO Salaries (EmployeeID, SalaryAmount, EffectiveDate)
+    VALUES (NEW.EmployeeID, NEW.Salary, CURDATE());
+END //
+DELIMITER ;
